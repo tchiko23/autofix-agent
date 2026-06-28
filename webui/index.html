@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>autofix-agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js"></script>
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --bg-grad: radial-gradient(ellipse at top, #131a26 0%, #0a0e14 50%);
+      --panel: #10151d;
+      --panel-2: #141b25;
+      --panel-3: #1a2330;
+      --border: #1e2734;
+      --border-strong: #2a3441;
+      --text: #e6eaf0;
+      --text-2: #b4bccb;
+      --text-3: #7e8a9c;
+      --text-4: #4d5868;
+      --accent: #6c8eff;
+      --accent-2: #5577ee;
+      --accent-glow: rgba(108, 142, 255, 0.15);
+      --green: #4ec88a;
+      --green-glow: rgba(78, 200, 138, 0.12);
+      --red: #ef5350;
+      --red-glow: rgba(239, 83, 80, 0.12);
+      --amber: #e0a64a;
+      --amber-glow: rgba(224, 166, 74, 0.12);
+      --purple: #b07cff;
+      --purple-glow: rgba(176, 124, 255, 0.14);
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --sans: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --radius: 10px;
+      --radius-sm: 6px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg); background-image: var(--bg-grad); background-attachment: fixed;
+      color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.5;
+      -webkit-font-smoothing: antialiased; min-height: 100vh;
+    }
+    ::selection { background: var(--accent-glow); }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(10, 14, 20, 0.78);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-inner {
+      max-width: 1280px; margin: 0 auto; padding: 14px 32px;
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-weight: 700; font-size: 14px; color: #fff;
+      box-shadow: 0 0 0 1px var(--border-strong), 0 2px 8px var(--accent-glow);
+    }
+    .brand-text h1 { font-size: 15.5px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+    .brand-text .v { font-size: 11.5px; color: var(--text-3); margin-top: 1px; font-family: var(--mono); }
+    .health-indicator {
+      display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: 99px;
+      background: var(--panel); border: 1px solid var(--border);
+      font-size: 12.5px; font-weight: 500; color: var(--text-2);
+    }
+    .health-indicator.ok { color: var(--green); border-color: rgba(78,200,138,0.3); background: var(--green-glow); }
+    .health-indicator.warn { color: var(--amber); border-color: rgba(224,166,74,0.3); }
+    .health-indicator.bad { color: var(--red); border-color: rgba(239,83,80,0.3); background: var(--red-glow); }
+    .health-indicator .dot { width: 7px; height: 7px; border-radius: 99px; background: currentColor; box-shadow: 0 0 8px currentColor; }
+    .health-indicator .dot.pulse { animation: pulse 1.8s ease-in-out infinite; }
+
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 32px 80px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+      background: none; border: none; padding: 11px 16px; margin-bottom: -1px;
+      color: var(--text-3); font: inherit; font-weight: 500; font-size: 13.5px;
+      cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px;
+      border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+    }
+    .tab:hover:not(.active) { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab .num {
+      font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+      width: 18px; height: 18px; border-radius: 4px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--panel-2); color: var(--text-3); border: 1px solid var(--border);
+    }
+    .tab.active .num { background: var(--accent-glow); color: var(--accent); border-color: rgba(108,142,255,0.3); }
+    .tab .badge-soon { font-size: 9.5px; padding: 1px 6px; border-radius: 99px; background: var(--purple-glow); color: var(--purple); font-weight: 500; }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow-sm); }
+    .card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .card-h h3 { font-size: 12.5px; font-weight: 600; color: var(--text-3); margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card-h .h-right { display: flex; align-items: center; gap: 12px; color: var(--text-3); font-size: 12px; }
+
+    .grid { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-2-1 { grid-template-columns: 2fr 1fr; }
+    @media (max-width: 900px) { .grid-2, .grid-2-1 { grid-template-columns: 1fr; } }
+
+    .health-grid { display: grid; gap: 1px; background: var(--border); border-radius: 8px; overflow: hidden; }
+    .health-row { background: var(--panel); padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+    .health-row .icon-box {
+      width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--panel-2); border: 1px solid var(--border); color: var(--text-3);
+    }
+    .health-row .icon-box svg { width: 14px; height: 14px; }
+    .health-row .label { font-weight: 500; font-size: 13px; flex-shrink: 0; min-width: 130px; }
+    .health-row .value { color: var(--text-3); font-family: var(--mono); font-size: 12px; word-break: break-all; flex: 1; }
+    .health-row .badge { flex-shrink: 0; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+    .health-row .badge .dot { width: 6px; height: 6px; border-radius: 99px; background: currentColor; box-shadow: 0 0 6px currentColor; }
+    .health-row .badge.ok { color: var(--green); background: var(--green-glow); }
+    .health-row .badge.bad { color: var(--red); background: var(--red-glow); }
+    .health-row .badge.off { color: var(--text-4); background: var(--panel-2); }
+
+    .start-card {
+      background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 22px;
+      position: relative; overflow: hidden;
+    }
+    .start-card::before {
+      content: ''; position: absolute; top: -40%; right: -20%; width: 280px; height: 280px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); pointer-events: none;
+    }
+    .start-card h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; position: relative; }
+    .start-card p { font-size: 13px; color: var(--text-3); margin: 0 0 16px; position: relative; }
+    .start-card .actions { display: flex; gap: 10px; align-items: center; position: relative; flex-wrap: wrap; }
+    .start-card .ticket-count {
+      font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 99px; background: var(--panel-3); border: 1px solid var(--border);
+    }
+    .start-card .ticket-count b { color: var(--text); font-weight: 600; font-family: var(--mono); }
+
+    .btn {
+      font-family: inherit; font-weight: 500; font-size: 13.5px;
+      padding: 9px 16px; border-radius: var(--radius-sm); cursor: pointer;
+      background: var(--panel-2); color: var(--text); border: 1px solid var(--border-strong);
+      transition: all .15s ease; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      border-color: var(--accent); color: #fff; font-weight: 600;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.1) inset, 0 4px 12px var(--accent-glow);
+    }
+    .btn.primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn.ghost { background: transparent; border-color: transparent; color: var(--text-3); }
+    .btn.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--border); }
+    .btn svg { width: 14px; height: 14px; }
+
+    .live-panel {
+      background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+      position: relative; overflow: hidden;
+    }
+    .live-panel.active { border-color: rgba(108,142,255,0.4); }
+    .live-panel.active::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2.4s linear infinite;
+    }
+    @keyframes scan { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .live-panel .live-h { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .live-panel .live-h .pulse-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--text-4); }
+    .live-panel.active .live-h .pulse-dot { background: var(--accent); animation: pulse 1.5s ease-in-out infinite; box-shadow: 0 0 8px var(--accent); }
+    .live-rows { display: grid; gap: 10px; }
+    .live-row { display: flex; align-items: baseline; gap: 12px; }
+    .live-row .k { font-size: 11.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; min-width: 80px; font-weight: 500; }
+    .live-row .v { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 500; }
+    .live-row .v.muted { color: var(--text-4); font-style: italic; }
+    .live-row .v.accent { color: var(--accent); }
+    .live-row .v.purple { color: var(--purple); }
+    .stage-pipeline { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; gap: 4px; flex-wrap: wrap; }
+    .stage-chip {
+      font-size: 10.5px; padding: 3px 9px; border-radius: 99px;
+      background: var(--panel-3); color: var(--text-4); font-weight: 500;
+      border: 1px solid var(--border); font-family: var(--mono); transition: all .2s ease;
+    }
+    .stage-chip.done { background: var(--green-glow); color: var(--green); border-color: rgba(78,200,138,0.25); }
+    .stage-chip.current { background: var(--accent-glow); color: var(--accent); border-color: rgba(108,142,255,0.4); box-shadow: 0 0 0 3px rgba(108,142,255,0.08); }
+
+    .opts {
+      display: flex; flex-wrap: wrap; gap: 18px; align-items: center; padding: 10px 14px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      color: var(--text-3); font-size: 12.5px;
+    }
+    .opts label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+    .opts input[type="text"] {
+      background: var(--bg); border: 1px solid var(--border-strong); color: var(--text);
+      border-radius: 4px; padding: 5px 8px; font: inherit; font-family: var(--mono); font-size: 11.5px; width: 110px;
+    }
+    .opts input[type="text"]:focus { outline: none; border-color: var(--accent); }
+    .opts input[type="checkbox"] { accent-color: var(--accent); }
+
+    .logs-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; margin-top: 22px; }
+    .logs-h .left { display: flex; align-items: center; gap: 12px; }
+    .logs-h h3 { font-size: 12.5px; font-weight: 600; color: var(--text-3); margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
+    .logs-h .meta { font-size: 11.5px; color: var(--text-4); font-family: var(--mono); }
+    .logs {
+      background: #060a0f; border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-family: var(--mono); font-size: 12px; line-height: 1.55;
+      padding: 14px 18px; height: 420px; overflow-y: auto; white-space: pre-wrap;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .logs .line { display: block; padding: 1px 0; }
+    .logs .l-batch { color: var(--accent); }
+    .logs .l-agent { color: var(--purple); }
+    .logs .l-ok { color: var(--green); }
+    .logs .l-err { color: var(--red); }
+    .logs .l-warn { color: var(--amber); }
+    .logs .l-sys { color: var(--text-4); font-style: italic; }
+    .logs .l-loc, .logs .l-plan, .logs .l-patch { color: #87c5e8; }
+    .logs .empty { color: var(--text-4); text-align: center; padding: 60px 20px; font-family: var(--sans); font-style: italic; }
+
+    .table-wrap { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: var(--panel-2); }
+    th { text-align: left; padding: 11px 16px; color: var(--text-3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+    td { padding: 11px 16px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--panel-2); }
+    td a { color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 12px; }
+    td a:hover { text-decoration: underline; }
+    td a svg { width: 11px; height: 11px; }
+    .ticket-cell { font-family: var(--mono); font-weight: 500; font-size: 12px; }
+    .score-cell { font-family: var(--mono); font-size: 12px; }
+    .score-hi { color: var(--green); } .score-mid { color: var(--amber); } .score-low { color: var(--red); } .score-na { color: var(--text-4); }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+      padding: 3px 9px; border-radius: 99px;
+      background: var(--panel-3); color: var(--text-3); border: 1px solid var(--border);
+    }
+    .status-badge .dot { width: 5px; height: 5px; border-radius: 99px; background: currentColor; }
+    .status-badge.created { color: var(--green); background: var(--green-glow); border-color: rgba(78,200,138,0.25); }
+    .status-badge.blocked { color: var(--amber); background: var(--amber-glow); border-color: rgba(224,166,74,0.25); }
+    .status-badge.error { color: var(--red); background: var(--red-glow); border-color: rgba(239,83,80,0.25); }
+    .status-badge.neutral { color: var(--text-3); }
+    .empty-table { padding: 40px 16px; text-align: center; color: var(--text-4); font-style: italic; font-size: 13px; }
+
+    /* ====== Accordion (Pre-MR analysis) ====== */
+    .acc { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    .acc-row { border-bottom: 1px solid var(--border); }
+    .acc-row:last-child { border-bottom: none; }
+    .acc-head {
+      width: 100%; display: flex; align-items: center; gap: 14px;
+      background: none; border: none; padding: 13px 18px; cursor: pointer;
+      font: inherit; color: var(--text); text-align: left;
+      transition: background .12s ease;
+    }
+    .acc-head:hover { background: var(--panel-2); }
+    .acc-head .chev { width: 14px; height: 14px; color: var(--text-4); transition: transform .2s ease; flex-shrink: 0; }
+    .acc-row.open .acc-head .chev { transform: rotate(90deg); color: var(--accent); }
+    .acc-head .t { font-family: var(--mono); font-weight: 500; font-size: 12.5px; min-width: 110px; }
+    .acc-head .run { font-family: var(--mono); font-size: 11px; color: var(--text-4); }
+    .acc-head .spacer { flex: 1; }
+    .acc-body { padding: 4px 18px 18px 46px; animation: fadein .25s ease both; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+    .detail-sec { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+    .detail-sec h4 { margin: 0 0 10px; font-size: 10.5px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+    .detail-sec h4 svg { width: 12px; height: 12px; }
+    .kv { display: grid; gap: 7px; font-size: 12.5px; }
+    .kv .pair { display: flex; gap: 10px; align-items: baseline; }
+    .kv .k { color: var(--text-3); min-width: 110px; flex-shrink: 0; font-size: 11.5px; }
+    .kv .v { color: var(--text-2); }
+    .kv .v.mono { font-family: var(--mono); font-size: 11.5px; }
+    .kv .v.hl { color: var(--text); }
+    .tool-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .tool-chip { font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--panel-3); border: 1px solid var(--border); font-family: var(--mono); color: var(--text-2); }
+    .conclusion-text { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0; }
+    .detail-loading { padding: 20px; color: var(--text-4); font-style: italic; font-size: 12.5px; }
+    .mini-log { background: #060a0f; border: 1px solid var(--border); border-radius: 5px; font-family: var(--mono); font-size: 10.5px; line-height: 1.5; padding: 10px 12px; max-height: 160px; overflow-y: auto; white-space: pre-wrap; color: var(--text-3); margin-top: 10px; }
+
+    /* ====== Preview tabs ====== */
+    .preview { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; position: relative; overflow: hidden; }
+    .preview::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, transparent 40%, var(--panel) 100%); opacity: 0.6; }
+    .preview-h { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; position: relative; z-index: 1; }
+    .preview-h .icon-box {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-glow), var(--purple-glow));
+      border: 1px solid var(--border-strong);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent);
+    }
+    .preview-h .icon-box svg { width: 20px; height: 20px; }
+    .preview-h h2 { font-size: 18px; font-weight: 600; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+    .preview-h h2 .tag { font-size: 10.5px; padding: 2px 8px; border-radius: 99px; background: var(--purple-glow); color: var(--purple); font-weight: 500; }
+    .preview-h p { color: var(--text-3); font-size: 13.5px; margin: 0; max-width: 640px; line-height: 1.55; }
+    .mockup { position: relative; z-index: 1; margin-top: 20px; }
+    .mockup-mini-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+    .chat-mockup { display: flex; flex-direction: column; gap: 10px; }
+    .chat-bubble { padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12.5px; max-width: 70%; }
+    .chat-bubble.user { background: var(--accent-glow); color: var(--text-2); align-self: flex-end; border: 1px solid rgba(108,142,255,0.25); }
+    .chat-bubble.agent { background: var(--panel-2); color: var(--text-2); border: 1px solid var(--border); }
+    .action-mockup { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+    .action-mockup .fake-btn { padding: 8px 14px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500; border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
+    .action-mockup .fake-btn.approve { background: rgba(78,200,138,0.12); color: var(--green); border-color: rgba(78,200,138,0.3); }
+    .action-mockup .fake-btn.reject { background: rgba(239,83,80,0.08); color: var(--red); border-color: rgba(239,83,80,0.2); }
+    .action-mockup .fake-btn svg { width: 13px; height: 13px; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.15); } }
+    @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .fadein { animation: fadein .3s ease both; }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .mt-12 { margin-top: 12px; } .mt-16 { margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    const I = (paths, attrs={}) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...attrs}>{paths}</svg>
+    );
+    const ICONS = {
+      check: I(<polyline points="20 6 9 17 4 12"/>),
+      x: I(<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>),
+      play: I(<polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/>),
+      refresh: I(<><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></>),
+      cpu: I(<><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></>),
+      folder: I(<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>),
+      file: I(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>),
+      gitbranch: I(<><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></>),
+      ticket: I(<><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><line x1="13" y1="5" x2="13" y2="19"/></>),
+      sparkles: I(<path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/>),
+      ext: I(<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></>),
+      activity: I(<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>),
+      messages: I(<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>),
+      gitMerge: I(<><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></>),
+      eye: I(<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>),
+      chevron: I(<polyline points="9 18 15 12 9 6"/>),
+      search: I(<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>),
+      bulb: I(<><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2V18h6v-1.3c0-.8.4-1.5 1-2A7 7 0 0 0 12 2z"/></>),
+      wrench: I(<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>),
+      terminal: I(<><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></>),
+    };
+
+    // ============================ LOG PARSING (live panel only) ============================
+    function lineClass(line) {
+      if (/\[ERROR\]|ERROR:|Traceback|\bFATAL\b|FAILED/.test(line)) return "l-err";
+      if (/WARN|WARNING/.test(line)) return "l-warn";
+      if (/\bOK\b|environnement valide|MR_CREATED|MR_REUSED|SUCCESS/.test(line)) return "l-ok";
+      if (/^\s*\[BATCH\]/.test(line)) return "l-batch";
+      if (/^\s*\[AGENT\]|^\s*\[LLM_LIBRE\]/.test(line)) return "l-agent";
+      if (/^\s*\[LOCALIZER\]/.test(line)) return "l-loc";
+      if (/^\s*\[PLAN\]|^\s*\[PROMPT_LLM\]|^\s*\[CONTEXT_BREAKDOWN\]/.test(line)) return "l-plan";
+      if (/^\s*\[PATCH\]/.test(line)) return "l-patch";
+      if (/^\s*\[CHECK\]/.test(line)) return "l-batch";
+      return "";
+    }
+
+    const STAGES = [
+      { id: "start",    label: "Startup",          match: /\[AGENT\] start|\[AGENT\] run_id=|\[AGENT\] ticket_key=/ },
+      { id: "localize", label: "Localization",     match: /^\s*\[LOCALIZER\]/ },
+      { id: "resolve",  label: "Resolution",       match: /^\s*\[RESOLVER\]/ },
+      { id: "plan",     label: "Cascade 3a-d",     match: /^\s*\[PLAN\]|\[PROMPT_LLM\]|\[CONTEXT_BREAKDOWN\]/ },
+      { id: "explore",  label: "Exploration (3e)", match: /cascade exhausted, attempting autonomous exploration/ },
+      { id: "libre",    label: "Free LLM (3f)",    match: /\[LLM_LIBRE\] stage 3f/ },
+      { id: "validate", label: "Validation",       match: /\[AGENT\] validation_score=|\[AGENT\] validator\./ },
+      { id: "patch",    label: "Patch",            match: /^\s*\[PATCH\]/ },
+      { id: "push",     label: "Push & MR",        match: /MR_CREATED|MR_REUSED|PUSHED/ },
+    ];
+
+    function detectLiveStage(lines) {
+      let currentStage = null;
+      const seen = new Set();
+      let currentTicket = null, validationScore = null;
+      for (const line of lines) {
+        const mb = line.match(/\[BATCH\]\s+(?:===\s+)?([A-Z]+-\d+)/) || line.match(/\[AGENT\] ticket_key=([A-Z]+-\d+)/);
+        if (mb && mb[1] !== "NON_ETABLI") currentTicket = mb[1];
+        for (const s of STAGES) {
+          if (s.match.test(line)) { currentStage = s.id; seen.add(s.id); }
+        }
+        const ms = line.match(/validation_score[=:]?\s*(\d+)/);
+        if (ms) validationScore = parseInt(ms[1], 10);
+      }
+      return { currentStage, seen, currentTicket, validationScore };
+    }
+
+    // ============================ STATUS / SCORE HELPERS ============================
+    function statusInfo(status) {
+      const s = String(status || "");
+      if (s === "MR_CREATED")  return { cls: "created", label: "MR created" };
+      if (s === "MR_REUSED")   return { cls: "created", label: "MR reused" };
+      if (s === "MR_BLOCKED")  return { cls: "blocked", label: "MR blocked" };
+      if (s === "PATCH_APPLIED") return { cls: "blocked", label: "patch applied" };
+      if (s === "DRY_RUN_ONLY")  return { cls: "blocked", label: "dry-run" };
+      if (s === "STARTED")     return { cls: "neutral", label: "running" };
+      if (/TIMEOUT/.test(s))   return { cls: "error", label: "timeout" };
+      if (/ERROR|EXCEPTION|FAILED/.test(s)) return { cls: "error", label: "error" };
+      if (!s) return { cls: "neutral", label: "pending" };
+      return { cls: "neutral", label: s.toLowerCase().replace(/_/g, " ") };
+    }
+    function StatusBadge({ status }) {
+      const { cls, label } = statusInfo(status);
+      return <span className={"status-badge " + cls}><span className="dot"/>{label}</span>;
+    }
+    function scoreClass(score) {
+      if (score == null) return "score-na";
+      if (score >= 85) return "score-hi";
+      if (score >= 65) return "score-mid";
+      return "score-low";
+    }
+    function mrLabel(url) {
+      const m = String(url || "").match(/merge_requests\/(\d+)/);
+      return m ? `MR !${m[1]}` : "open MR";
+    }
+
+    const TABS = [
+      { id: "dashboard",   num: "1", label: "Dashboard" },
+      { id: "progress",    num: "2", label: "Batch progress" },
+      { id: "analysis",    num: "3", label: "Pre-MR analysis" },
+      { id: "chat",        num: "4", label: "Agent chat", soon: true },
+      { id: "action",      num: "5", label: "Final action", soon: true },
+    ];
+
+    // ============================ APP ============================
+    function App() {
+      const [activeTab, setActiveTab] = useState("dashboard");
+      const [health, setHealth] = useState(null);
+      const [historyEntries, setHistoryEntries] = useState([]);
+      const [lines, setLines] = useState([]);
+      const [running, setRunning] = useState(false);
+      const [phase, setPhase] = useState("idle");
+      const [activeAction, setActiveAction] = useState(null);
+      const [baseBranch, setBaseBranch] = useState("main");
+      const [noReset, setNoReset] = useState(false);
+      const [stopOnError, setStopOnError] = useState(false);
+      const [autoScroll, setAutoScroll] = useState(true);
+      const wsRef = useRef(null);
+      const logsEndRef = useRef(null);
+
+      const loadHealth = useCallback(() => {
+        fetch("/api/health").then(r => r.json()).then(setHealth).catch(() => {});
+      }, []);
+      const loadHistory = useCallback(() => {
+        fetch("/api/history").then(r => r.json()).then(d => setHistoryEntries(d.entries || [])).catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        loadHealth(); loadHistory();
+        const itv = setInterval(() => { loadHealth(); loadHistory(); }, 15000);
+        return () => clearInterval(itv);
+      }, [loadHealth, loadHistory]);
+
+      useEffect(() => {
+        if (autoScroll) logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, [lines, autoScroll]);
+
+      const pushLine = useCallback((text, kind) => {
+        setLines(prev => [...prev, { text, kind: kind || lineClass(text) }]);
+      }, []);
+
+      const runAction = useCallback((action, extra) => {
+        if (running) return;
+        setRunning(true); setPhase("running"); setActiveAction(action);
+        setActiveTab("progress");
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${proto}//${location.host}/ws/run`);
+        wsRef.current = ws;
+        ws.onopen = () => ws.send(JSON.stringify({ action, ...extra }));
+        ws.onmessage = (ev) => {
+          const m = JSON.parse(ev.data);
+          if (m.type === "start") pushLine(`$ ${m.cmd.join(" ")}`, "l-sys");
+          else if (m.type === "log") pushLine(m.line);
+          else if (m.type === "error") pushLine(m.line, "l-err");
+          else if (m.type === "end") {
+            pushLine(`— ${m.label} finished, exit code ${m.returncode} —`, "l-sys");
+            setPhase(m.returncode === 0 ? "ok" : "fail");
+            setRunning(false); ws.close();
+            loadHealth(); loadHistory();
+          }
+        };
+        ws.onerror = () => { pushLine("WebSocket connection error.", "l-err"); setPhase("fail"); setRunning(false); };
+        ws.onclose = () => { if (running) setRunning(false); };
+      }, [running, pushLine, loadHealth, loadHistory]);
+
+      const live = useMemo(() => detectLiveStage(lines.map(l => l.text)), [lines]);
+
+      const healthSummary = useMemo(() => {
+        if (!health) return { tone: "warn", text: "Loading…", count: "—" };
+        const checks = [health?.repo?.ok, health?.config?.ok, health?.ollama?.ok, health?.git?.ok, health?.forge?.configured];
+        const okCount = checks.filter(Boolean).length, total = checks.length;
+        if (okCount === total) return { tone: "ok", text: "All systems go", count: `${okCount}/${total}` };
+        if (okCount >= total - 1) return { tone: "warn", text: "Almost ready", count: `${okCount}/${total}` };
+        return { tone: "bad", text: "Check configuration", count: `${okCount}/${total}` };
+      }, [health]);
+
+      return (
+        <>
+          <header className="topbar">
+            <div className="topbar-inner">
+              <div className="brand">
+                <div className="brand-mark">A</div>
+                <div className="brand-text">
+                  <h1>autofix-agent</h1>
+                  <div className="v">autofix-agent · v9.16.8</div>
+                </div>
+              </div>
+              <div className={"health-indicator " + healthSummary.tone}>
+                <span className={"dot " + (healthSummary.tone === "ok" ? "" : "pulse")}/>
+                <span>{healthSummary.text}</span>
+                <span style={{ fontFamily: "var(--mono)", opacity: 0.7, marginLeft: 2 }}>{healthSummary.count}</span>
+              </div>
+            </div>
+          </header>
+
+          <main className="wrap">
+            <nav className="tabs" role="tablist">
+              {TABS.map(t => (
+                <button key={t.id} role="tab" aria-selected={activeTab === t.id}
+                        className={"tab " + (activeTab === t.id ? "active" : "")}
+                        onClick={() => setActiveTab(t.id)}>
+                  <span className="num">{t.num}</span><span>{t.label}</span>
+                  {t.soon && <span className="badge-soon">soon</span>}
+                </button>
+              ))}
+            </nav>
+
+            <div className="fadein" key={activeTab}>
+              {activeTab === "dashboard" && <Dashboard health={health} history={historyEntries} running={running}
+                onStart={() => runAction("batch_run", { base_branch: baseBranch, no_reset: noReset, stop_on_python_error: stopOnError })}
+                onCheck={() => runAction("check_env")} />}
+              {activeTab === "progress" && <Progress
+                lines={lines} running={running} phase={phase} activeAction={activeAction}
+                history={historyEntries} live={live}
+                baseBranch={baseBranch} setBaseBranch={setBaseBranch}
+                noReset={noReset} setNoReset={setNoReset}
+                stopOnError={stopOnError} setStopOnError={setStopOnError}
+                autoScroll={autoScroll} setAutoScroll={setAutoScroll}
+                onRun={runAction} onClear={() => setLines([])} logsEndRef={logsEndRef} />}
+              {activeTab === "analysis" && <PreMrAnalysis history={historyEntries} />}
+              {activeTab === "chat" && <ChatPreview />}
+              {activeTab === "action" && <ActionPreview />}
+            </div>
+          </main>
+        </>
+      );
+    }
+
+    // ============================ HISTORY TABLE (shared) ============================
+    function HistoryTable({ entries, emptyText }) {
+      if (!entries || entries.length === 0) return <div className="empty-table">{emptyText || "No runs yet. Results will appear here after a batch."}</div>;
+      return (
+        <table>
+          <thead><tr><th>Ticket</th><th>Score</th><th>Confidence</th><th>Status</th><th style={{textAlign:"right"}}>Merge request</th></tr></thead>
+          <tbody>
+            {entries.map((e, i) => (
+              <tr key={(e.ticket_key || "?") + (e.run_id || i)}>
+                <td className="ticket-cell">{e.ticket_key || "—"}</td>
+                <td className={"score-cell " + scoreClass(e.validation_score)}>{e.validation_score != null ? `${e.validation_score} / 100` : "—"}</td>
+                <td className={"score-cell " + scoreClass(e.model_confidence)}>{e.model_confidence != null ? `${e.model_confidence} / 100` : "—"}</td>
+                <td><StatusBadge status={e.delivery_status}/>{e.mr_blocked_reason ? <div style={{fontSize:11,color:"var(--text-4)",marginTop:3}}>{String(e.mr_blocked_reason).slice(0,70)}</div> : null}</td>
+                <td style={{textAlign:"right"}}>
+                  {e.pr_url
+                    ? <a href={e.pr_url} target="_blank" rel="noreferrer" title={e.pr_url}>{mrLabel(e.pr_url)} {ICONS.ext}</a>
+                    : <span style={{color:"var(--text-4)"}}>—</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+
+    // ============================ DASHBOARD ============================
+    function Dashboard({ health, history, running, onStart, onCheck }) {
+      const ticketCount = health?.analysis?.count ?? 0;
+      const finished = history.filter(e => e.delivery_status && e.delivery_status !== "STARTED");
+      const created = finished.filter(e => /MR_CREATED|MR_REUSED/.test(e.delivery_status)).length;
+      const blocked = finished.filter(e => /BLOCKED|DRY_RUN|PATCH_APPLIED/.test(e.delivery_status)).length;
+      const errored = finished.filter(e => /ERROR|TIMEOUT|EXCEPTION|FAILED/.test(e.delivery_status)).length;
+
+      const HealthRow = ({ icon, label, value, ok, badge, off }) => (
+        <div className="health-row">
+          <div className="icon-box">{icon}</div>
+          <div className="label">{label}</div>
+          <div className="value">{value || "—"}</div>
+          {off
+            ? <span className="badge off"><span className="dot"/>{badge || "off"}</span>
+            : <span className={"badge " + (ok ? "ok" : "bad")}><span className="dot"/>{badge || (ok ? "OK" : "down")}</span>}
+        </div>
+      );
+
+      return (
+        <div className="grid" style={{gap:16}}>
+          <div className="grid grid-2-1" style={{gap:16}}>
+            <div className="start-card">
+              <h2>Start a session</h2>
+              <p>Run the agent on every ticket in the <code style={{fontFamily:"var(--mono)",fontSize:12,color:"var(--text-2)"}}>analysis/</code> folder. Each ticket goes through the cascade: deterministic patterns, constrained LLM, then the autonomous exploration agent if needed.</p>
+              <div className="actions">
+                <button className="btn primary" onClick={onStart} disabled={running || ticketCount === 0}>
+                  {ICONS.play}<span>Run batch</span>
+                </button>
+                <button className="btn" onClick={onCheck} disabled={running}>
+                  {ICONS.refresh}<span>Check environment</span>
+                </button>
+                {ticketCount > 0
+                  ? <span className="ticket-count">{ICONS.ticket}<b>{ticketCount}</b> ticket{ticketCount > 1 ? "s" : ""} queued</span>
+                  : <span className="ticket-count" style={{color:"var(--amber)"}}>No tickets in analysis/</span>}
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-h"><h3>Run history</h3></div>
+              <div className="row" style={{gap:24}}>
+                <div><div style={{fontSize:11,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:4}}>Runs</div><div style={{fontSize:22,fontWeight:600,fontFamily:"var(--mono)"}}>{finished.length}</div></div>
+                <div><div style={{fontSize:11,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:4}}>MRs created</div><div style={{fontSize:22,fontWeight:600,fontFamily:"var(--mono)",color: created>0 ? "var(--green)" : "var(--text)"}}>{created}</div></div>
+                <div><div style={{fontSize:11,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:4}}>Blocked</div><div style={{fontSize:22,fontWeight:600,fontFamily:"var(--mono)",color: blocked>0 ? "var(--amber)" : "var(--text)"}}>{blocked}</div></div>
+                <div><div style={{fontSize:11,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:4}}>Errors</div><div style={{fontSize:22,fontWeight:600,fontFamily:"var(--mono)",color: errored>0 ? "var(--red)" : "var(--text)"}}>{errored}</div></div>
+              </div>
+              {finished.length > 0 && (
+                <div style={{marginTop:16,paddingTop:12,borderTop:"1px solid var(--border)",fontSize:12,color:"var(--text-3)"}}>
+                  Success rate: <b style={{color:"var(--text)",fontFamily:"var(--mono)"}}>{Math.round((created / finished.length) * 100)}%</b>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card" style={{padding:"18px 22px"}}>
+            <div className="card-h">
+              <h3>System health</h3>
+              <div className="h-right">Live checks, refreshed every 15 s</div>
+            </div>
+            <div className="health-grid">
+              <HealthRow icon={ICONS.folder} label="Target repo" value={health?.repo?.path || "FIX_TARGET_REPO missing"} ok={!!health?.repo?.ok} badge={health?.repo?.ok ? "found" : "missing"} />
+              <HealthRow icon={ICONS.file} label="Configuration" value={health?.config?.path ? health.config.path.split(/[\\/]/).slice(-2).join("/") : "not found"} ok={!!health?.config?.ok} />
+              <HealthRow icon={ICONS.cpu} label="Ollama LLM" value={health?.ollama?.ok ? `${health?.ollama?.model || "model unset"} · ${health?.ollama?.url}` : (health?.ollama?.error || "unreachable")} ok={!!health?.ollama?.ok} />
+              <HealthRow icon={ICONS.gitbranch} label="Git" value={health?.git?.version || health?.git?.error || "—"} ok={!!health?.git?.ok} />
+              <HealthRow icon={ICONS.ticket} label="Ticket queue" value={`${health?.analysis?.count ?? 0} file(s) in analysis/`} ok={!!health?.analysis?.ok} badge={`${health?.analysis?.count ?? 0}`} />
+              <HealthRow icon={ICONS.gitMerge} label="GitLab (forge)" value={health?.forge?.configured ? "FORGE_TOKEN configured" : "FORGE_TOKEN missing in secrets.env"} ok={!!health?.forge?.configured} />
+              <HealthRow icon={ICONS.messages} label="Jira" value={health?.jira?.configured ? "JIRA credentials configured" : "not configured (Jira comments skipped)"} off={!health?.jira?.configured} ok={!!health?.jira?.configured} badge={health?.jira?.configured ? "OK" : "skip"} />
+              <HealthRow icon={ICONS.sparkles} label="RAG" value={health?.rag?.enabled ? "enabled (chromadb + sentence-transformers)" : "disabled by config (v9.7 behaviour)"} off={!health?.rag?.enabled} ok={!!health?.rag?.enabled} badge={health?.rag?.enabled ? "ON" : "OFF"} />
+            </div>
+          </div>
+
+          {history.length > 0 && (
+            <div className="card" style={{padding:"18px 22px"}}>
+              <div className="card-h">
+                <h3>Recent runs</h3>
+                <div className="h-right">most recent first · from runs/history.jsonl</div>
+              </div>
+              <div className="table-wrap" style={{marginTop:4}}>
+                <HistoryTable entries={history.slice(0, 8)} />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ============================ BATCH PROGRESS ============================
+    function Progress(p) {
+      const isActive = p.running;
+      return (
+        <div className="grid" style={{gap:16}}>
+          <div className="grid grid-2-1" style={{gap:16}}>
+            <div className="card">
+              <div className="card-h"><h3>Actions</h3></div>
+              <div className="row" style={{gap:10}}>
+                <button className="btn primary" disabled={p.running} onClick={() => p.onRun("batch_run", { base_branch: p.baseBranch, no_reset: p.noReset, stop_on_python_error: p.stopOnError })}>
+                  {ICONS.play}<span>Run batch</span>
+                </button>
+                <button className="btn" disabled={p.running} onClick={() => p.onRun("check_env")}>
+                  {ICONS.refresh}<span>Check environment</span>
+                </button>
+              </div>
+              <div className="opts mt-12">
+                <label>base-branch
+                  <input type="text" value={p.baseBranch} disabled={p.running} onChange={e => p.setBaseBranch(e.target.value)} />
+                </label>
+                <label><input type="checkbox" checked={p.noReset} disabled={p.running} onChange={e => p.setNoReset(e.target.checked)}/> --no-reset</label>
+                <label><input type="checkbox" checked={p.stopOnError} disabled={p.running} onChange={e => p.setStopOnError(e.target.checked)}/> --stop-on-python-error</label>
+              </div>
+            </div>
+
+            <div className={"live-panel " + (isActive ? "active" : "")}>
+              <div className="live-h">
+                <span className="pulse-dot"/>
+                <span>{isActive ? "Agent running" : (p.phase === "ok" ? "Last run · done" : p.phase === "fail" ? "Last run · failed" : "Idle")}</span>
+              </div>
+              <div className="live-rows">
+                <div className="live-row">
+                  <span className="k">Ticket</span>
+                  <span className={"v " + (p.live.currentTicket ? "" : "muted")}>{p.live.currentTicket || "—"}</span>
+                </div>
+                <div className="live-row">
+                  <span className="k">Stage</span>
+                  <span className={"v " + (["explore","libre"].includes(p.live.currentStage) ? "purple" : (p.live.currentStage ? "accent" : "muted"))}>
+                    {p.live.currentStage ? (STAGES.find(s => s.id === p.live.currentStage)?.label) : "—"}
+                  </span>
+                </div>
+                {p.live.validationScore != null && (
+                  <div className="live-row">
+                    <span className="k">Score</span>
+                    <span className="v" style={{color: p.live.validationScore >= 85 ? "var(--green)" : p.live.validationScore >= 65 ? "var(--amber)" : "var(--red)"}}>{p.live.validationScore} / 100</span>
+                  </div>
+                )}
+              </div>
+              <div className="stage-pipeline">
+                {STAGES.map(s => (
+                  <span key={s.id} className={"stage-chip " + (s.id === p.live.currentStage ? "current" : (p.live.seen.has(s.id) ? "done" : ""))}>{s.label}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div className="logs-h">
+              <div className="left">
+                <h3>Logs</h3>
+                {p.lines.length > 0 && <span className="meta">{p.lines.length} line{p.lines.length>1?"s":""}</span>}
+              </div>
+              <div className="row" style={{gap:4}}>
+                <label className="opts" style={{padding:"5px 10px",border:"1px solid var(--border)",background:"transparent"}}>
+                  <input type="checkbox" checked={p.autoScroll} onChange={e => p.setAutoScroll(e.target.checked)}/> auto-scroll
+                </label>
+                <button className="btn ghost" disabled={p.running || p.lines.length === 0} onClick={p.onClear}>clear</button>
+              </div>
+            </div>
+            <div className="logs">
+              {p.lines.length === 0
+                ? <div className="empty">No logs yet. Click Run batch or Check environment above.</div>
+                : p.lines.map((l, i) => <span key={i} className={"line " + l.kind}>{l.text}</span>)}
+              <div ref={p.logsEndRef} />
+            </div>
+            <div style={{marginTop:6,fontSize:11.5,color:"var(--text-4)"}}>
+              Note: per-ticket agent output is captured by the batch runner; detailed scores and MR links come from <span style={{fontFamily:"var(--mono)"}}>runs/history.jsonl</span> below.
+            </div>
+          </div>
+
+          <div>
+            <div className="logs-h" style={{marginTop:6}}>
+              <div className="left"><h3>Results</h3>{p.history.length > 0 && <span className="meta">{p.history.length} run{p.history.length>1?"s":""} · auto-refreshed</span>}</div>
+            </div>
+            <div className="table-wrap">
+              <HistoryTable entries={p.history} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================ PRE-MR ANALYSIS (functional) ============================
+    function PreMrAnalysis({ history }) {
+      const [openKey, setOpenKey] = useState(null);
+      const [details, setDetails] = useState({});   // key -> detail | "loading" | {error}
+
+      const rows = history.filter(e => e.run_id);   // need a run_id to fetch artifacts
+
+      const toggle = (e) => {
+        const key = `${e.ticket_key}/${e.run_id}`;
+        if (openKey === key) { setOpenKey(null); return; }
+        setOpenKey(key);
+        if (!details[key]) {
+          setDetails(prev => ({ ...prev, [key]: "loading" }));
+          fetch(`/api/run_detail?ticket=${encodeURIComponent(e.ticket_key)}&run_id=${encodeURIComponent(e.run_id)}`)
+            .then(r => r.json())
+            .then(d => setDetails(prev => ({ ...prev, [key]: d })))
+            .catch(() => setDetails(prev => ({ ...prev, [key]: { error: "failed to load run detail" } })));
+        }
+      };
+
+      return (
+        <div className="grid" style={{gap:16}}>
+          <div className="card" style={{padding:"18px 22px"}}>
+            <div className="card-h">
+              <h3>Pre-MR analysis</h3>
+              <div className="h-right">click a row to inspect the agent's analysis and conclusion</div>
+            </div>
+            {rows.length === 0
+              ? <div className="empty-table">No completed runs yet. Run a batch first — each processed ticket will appear here with its full analysis.</div>
+              : (
+                <div className="acc">
+                  {rows.map(e => {
+                    const key = `${e.ticket_key}/${e.run_id}`;
+                    const open = openKey === key;
+                    const d = details[key];
+                    return (
+                      <div key={key} className={"acc-row " + (open ? "open" : "")}>
+                        <button className="acc-head" onClick={() => toggle(e)} aria-expanded={open}>
+                          <span className="chev">{ICONS.chevron}</span>
+                          <span className="t">{e.ticket_key}</span>
+                          <span className="run">{e.run_id}</span>
+                          <span className="spacer"/>
+                          <span className={"score-cell " + scoreClass(e.validation_score)} style={{fontSize:11.5}}>
+                            {e.validation_score != null ? `${e.validation_score}/100` : ""}
+                          </span>
+                          <StatusBadge status={e.delivery_status}/>
+                          {e.pr_url && <a href={e.pr_url} target="_blank" rel="noreferrer" onClick={ev => ev.stopPropagation()} style={{color:"var(--accent)",fontFamily:"var(--mono)",fontSize:11.5,textDecoration:"none",display:"inline-flex",alignItems:"center",gap:4}}>{mrLabel(e.pr_url)} {ICONS.ext}</a>}
+                        </button>
+                        {open && (
+                          <div className="acc-body">
+                            {d === "loading" && <div className="detail-loading">Loading run artifacts…</div>}
+                            {d && d !== "loading" && d.error && <div className="detail-loading" style={{color:"var(--red)"}}>{d.error}</div>}
+                            {d && d !== "loading" && !d.error && <RunDetail d={d} entry={e} />}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+        </div>
+      );
+    }
+
+    function RunDetail({ d, entry }) {
+      const diag = d.diagnosis || {};
+      const conc = d.conclusion || {};
+      const loc = d.localization || {};
+      const exp = d.exploration || {};
+      const stage = conc.llm_libre_mode ? "3f — Free-mode LLM (draft)" : (conc.agent_explored ? "3e — Exploration agent" : "3a–3d — deterministic / constrained LLM");
+      return (
+        <div>
+          <div className="detail-grid">
+            <div className="detail-sec">
+              <h4>{ICONS.search} Diagnosis</h4>
+              <div className="kv">
+                <div className="pair"><span className="k">Immediate cause</span><span className="v hl">{diag.immediate_cause || "—"}</span></div>
+                <div className="pair"><span className="k">Root cause (hyp.)</span><span className="v">{diag.root_cause_hypothesis || "—"}</span></div>
+                <div className="pair"><span className="k">Exception</span><span className="v mono">{diag.exception_class || "—"}</span></div>
+                <div className="pair"><span className="k">Fix style</span><span className="v mono">{diag.fix_style || "—"}</span></div>
+                <div className="pair"><span className="k">Target</span><span className="v mono">{loc.target_file || "—"}{loc.target_method ? ` · ${loc.target_method}()` : ""}</span></div>
+              </div>
+            </div>
+            <div className="detail-sec">
+              <h4>{ICONS.bulb} Agent conclusion</h4>
+              <div className="kv">
+                <div className="pair"><span className="k">Produced by</span><span className="v" style={{color: conc.agent_explored ? "var(--purple)" : "var(--text-2)"}}>{stage}</span></div>
+                <div className="pair"><span className="k">Score</span><span className={"v mono " + scoreClass(conc.validation_score)}>{conc.validation_score != null ? `${conc.validation_score} / 100` : "—"}</span></div>
+                {conc.rejection_reason && <div className="pair"><span className="k">Rejection</span><span className="v" style={{color:"var(--red)"}}>{conc.rejection_reason}</span></div>}
+                <div className="pair"><span className="k">Files edited</span><span className="v mono">{(conc.edited_files || []).join(", ") || "—"}</span></div>
+              </div>
+              {conc.root_cause && <p className="conclusion-text" style={{marginTop:10}}><b style={{color:"var(--text)"}}>Root cause:</b> {conc.root_cause}</p>}
+              {conc.fix_summary && <p className="conclusion-text" style={{marginTop:6}}><b style={{color:"var(--text)"}}>Fix:</b> {conc.fix_summary}</p>}
+            </div>
+          </div>
+
+          {exp.attempted && (
+            <div className="detail-sec mt-12">
+              <h4>{ICONS.terminal} Exploration trace</h4>
+              <div className="kv" style={{marginBottom:8}}>
+                <div className="pair"><span className="k">Turns</span><span className="v mono" style={{color:"var(--purple)"}}>{exp.turn_count}</span></div>
+              </div>
+              {(exp.tools_used || []).length > 0 && (
+                <div className="tool-chips">
+                  {exp.tools_used.map((t, i) => <span key={i} className="tool-chip">{t}</span>)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(d.log_tail || []).length > 0 && (
+            <div className="mini-log">{d.log_tail.join("\n")}</div>
+          )}
+        </div>
+      );
+    }
+
+    // ============================ PREVIEWS (tabs 4–5) ============================
+    function ChatPreview() {
+      return (
+        <div className="preview">
+          <div className="preview-h">
+            <div className="icon-box">{ICONS.messages}</div>
+            <div>
+              <h2>Agent chat <span className="tag">preview — coming soon</span></h2>
+              <p>Talk to the agent about a ticket in progress: ask a question, request a different approach, or provide a <i>developer hint</i> to steer the next cascade iteration. Hints are injected into the existing pipeline (v9.16.6).</p>
+            </div>
+          </div>
+          <div className="mockup">
+            <div className="mockup-mini-card">
+              <div style={{fontSize:10.5,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:600,marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontFamily:"var(--mono)"}}>RUN-21162</span>
+                <span style={{color:"var(--text-4)"}}>·</span>
+                <span>Discussion session</span>
+              </div>
+              <div className="chat-mockup">
+                <div className="chat-bubble user">The NullPointer might come from an async call, not the repository. Can you check the OrderEventListener class?</div>
+                <div className="chat-bubble agent" style={{maxWidth:"85%"}}>
+                  <div style={{color:"var(--purple)",fontFamily:"var(--mono)",fontSize:10.5,marginBottom:4}}>agent · reasoning</div>
+                  Good lead. Re-running the cascade with this hint, targeting <span style={{fontFamily:"var(--mono)",color:"var(--accent)"}}>OrderEventListener.onPaid()</span>. Current score: 67 — if the new exploration finds the root cause on the listener side, we should clear the 85 threshold.
+                </div>
+                <div className="chat-bubble user" style={{opacity:0.5,fontStyle:"italic"}}>type a message…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ActionPreview() {
+      return (
+        <div className="preview">
+          <div className="preview-h">
+            <div className="icon-box">{ICONS.gitMerge}</div>
+            <div>
+              <h2>Final action <span className="tag">preview — coming soon</span></h2>
+              <p>A human gate between analysis and MR creation. Approve to commit, push and open the MR; iterate to re-run the cascade with a hint; reject to mark the ticket as not fixable.</p>
+            </div>
+          </div>
+          <div className="mockup">
+            <div className="mockup-mini-card">
+              <div className="row" style={{justifyContent:"space-between",marginBottom:14}}>
+                <div>
+                  <div style={{fontFamily:"var(--mono)",fontSize:13,fontWeight:600}}>RUN-21162</div>
+                  <div style={{color:"var(--text-3)",fontSize:12,marginTop:2}}>NullPointerException in OrderService.findById</div>
+                </div>
+                <div className="status-badge created" style={{fontSize:11.5}}><span className="dot"/>Patch ready · score 87/100</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,padding:"12px 0",borderTop:"1px solid var(--border)",borderBottom:"1px solid var(--border)"}}>
+                <div><div style={{fontSize:10.5,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600}}>Target</div><div style={{fontFamily:"var(--mono)",fontSize:11.5,marginTop:3}}>OrderService.java:142</div></div>
+                <div><div style={{fontSize:10.5,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600}}>Stage</div><div style={{fontFamily:"var(--mono)",fontSize:11.5,marginTop:3,color:"var(--purple)"}}>3e — Exploration</div></div>
+                <div><div style={{fontSize:10.5,color:"var(--text-3)",textTransform:"uppercase",letterSpacing:"0.05em",fontWeight:600}}>Branch</div><div style={{fontFamily:"var(--mono)",fontSize:11.5,marginTop:3}}>fix/ticket-21162</div></div>
+              </div>
+              <div className="action-mockup">
+                <div className="fake-btn approve">{ICONS.check}<span>Approve — create MR</span></div>
+                <div className="fake-btn">{ICONS.refresh}<span>Iterate with hint</span></div>
+                <div className="fake-btn reject">{ICONS.x}<span>Reject</span></div>
+                <span style={{marginLeft:"auto",color:"var(--text-4)",fontSize:11.5}}>non-interactive preview</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

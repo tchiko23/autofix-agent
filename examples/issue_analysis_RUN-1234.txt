@@ -1,0 +1,148 @@
+TICKET ANALYSIS — RUN-1234
+
+Summary
+-------
+Users report that the "Generate quarterly report" endpoint returns a 500 error
+when the requested quarter has no transactions. Stack trace points to a
+NullPointerException in QuarterlyReportService.buildSummary at line 142.
+
+Reproduction
+------------
+1. Login as a user with no transactions in the target quarter
+2. POST /api/reports/quarterly with quarter=Q1-2026
+3. Observe HTTP 500 with empty body
+
+Expected behavior
+-----------------
+The endpoint should return a 200 with an empty report structure (zero totals,
+empty line items) per business rule REPORTING.RG042.
+
+Stack trace
+-----------
+java.lang.NullPointerException: Cannot invoke "java.util.List.stream()" because "transactions" is null
+  at com.example.reports.QuarterlyReportService.buildSummary(QuarterlyReportService.java:142)
+  at com.example.reports.QuarterlyReportController.generate(QuarterlyReportController.java:58)
+  at jdk.internal.reflect.GeneratedMethodAccessor93.invoke(Unknown Source)
+  ...
+
+----
+
+```json
+{
+  "schema_version": "1.4.4",
+  "ticket_key": "RUN-1234",
+  "diagnosis": {
+    "immediate_cause": "NullPointerException when transactions list is null for empty quarters",
+    "root_cause_hypothesis": "The transaction repository returns null instead of an empty list when no rows match, and the service does not guard against this case",
+    "confidence_level": "high"
+  },
+  "crash": {
+    "exception_class": "java.lang.NullPointerException",
+    "exception_message": "Cannot invoke java.util.List.stream() because transactions is null",
+    "crash_file": "src/main/java/com/example/reports/QuarterlyReportService.java",
+    "crash_method": "buildSummary",
+    "crash_line": 142,
+    "stack_frames_application": [
+      "com.example.reports.QuarterlyReportService.buildSummary(QuarterlyReportService.java:142)",
+      "com.example.reports.QuarterlyReportController.generate(QuarterlyReportController.java:58)"
+    ]
+  },
+  "fix_recommendation": {
+    "fix_style": "null_guard",
+    "approach_summary": "Replace direct stream() call with Optional handling; return empty report when no transactions exist",
+    "rationale_business": "Per REPORTING.RG042, an empty quarter must return a valid empty report, not an error"
+  },
+  "must_touch": [
+    "src/main/java/com/example/reports/QuarterlyReportService.java"
+  ],
+  "may_touch": [
+    "src/main/java/com/example/reports/TransactionRepository.java"
+  ],
+  "must_touch_method": "buildSummary",
+  "repo_hint": "back",
+  "investigation_candidates": [
+    {
+      "rank": 1,
+      "type": "method",
+      "location": "QuarterlyReportService.buildSummary",
+      "file_hint": "src/main/java/com/example/reports/QuarterlyReportService.java",
+      "probability": "high",
+      "reasoning": "Method named in stack trace at the failing line"
+    },
+    {
+      "rank": 2,
+      "type": "method",
+      "location": "TransactionRepository.findByQuarter",
+      "file_hint": "src/main/java/com/example/reports/TransactionRepository.java",
+      "probability": "medium",
+      "reasoning": "Likely source of the null value; fixing here would also help other consumers"
+    }
+  ],
+  "endpoint_concerned": {
+    "method": "POST",
+    "path": "/api/reports/quarterly",
+    "controller_hint": "QuarterlyReportController",
+    "documented_in_rg": "REPORTING.RG042",
+    "rationale": "The endpoint exposing the failing flow"
+  },
+  "rules_of_business": [
+    {
+      "reference": "REPORTING.RG042",
+      "summary_extract": "An empty quarter must return a valid empty report (200) not an error (500)",
+      "confluence_url": "https://your-company.atlassian.net/wiki/spaces/REPORTING/pages/123456/Empty+Quarter+Behavior",
+      "validation_required": "TNR_obligatoire"
+    },
+    {
+      "reference": "REPORTING.RG017",
+      "summary_extract": "Totals in quarterly reports must always be present even at zero",
+      "confluence_url": null,
+      "validation_required": "non_regression"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "criterion": "GET /api/reports/quarterly with empty quarter returns 200",
+      "expected_outcome": "Response body has empty line items array and zero totals"
+    },
+    {
+      "criterion": "Existing non-empty quarters keep working",
+      "expected_outcome": "All historical reports render identically (regression check)"
+    }
+  ],
+  "tests_to_add": [
+    {
+      "scenario": "Empty quarter returns 200 with zero totals",
+      "test_class_hint": "QuarterlyReportServiceTest",
+      "test_method_hint": "test_buildSummary_emptyQuarter_returnsZeroTotals",
+      "test_type": "unit",
+      "validates_rg": ["REPORTING.RG042", "REPORTING.RG017"]
+    },
+    {
+      "scenario": "Non-empty quarter still produces correct summary",
+      "test_class_hint": "QuarterlyReportServiceTest",
+      "test_method_hint": "test_buildSummary_normalQuarter_returnsCorrectTotals",
+      "test_type": "non_regression",
+      "validates_rg": ["REPORTING.RG017"]
+    }
+  ],
+  "similar_past_incidents": [
+    {
+      "ticket_key": "RUN-0987",
+      "similarity_reason": "Same null-list-from-repository pattern in the monthly reports flow, fixed Jan 2025",
+      "fix_pattern_applied": "null_guard_with_empty_collection"
+    }
+  ],
+  "risks_and_uncertainties": [
+    {
+      "category": "uncertainty",
+      "severity": "low",
+      "description": "Confluence URL for REPORTING.RG017 not found after MCP search; BA should look it up manually"
+    },
+    {
+      "category": "risk",
+      "severity": "low",
+      "description": "If other endpoints share the same repository call pattern, they may have the same latent bug"
+    }
+  ]
+}
+```

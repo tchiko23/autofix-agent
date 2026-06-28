@@ -1,0 +1,8 @@
+python-dotenv==1.0.1
+requests==2.32.3
+# v9.8: RAG dependencies (chromadb embedded + sentence-transformers).
+# Au premier lancement de build_rag_index.bat, sentence-transformers
+# telechargera ~120 Mo de modele depuis HuggingFace (cache ensuite).
+# Pour un environnement airgap, voir README section "Installation offline".
+chromadb==0.5.23
+sentence-transformers==3.3.1
